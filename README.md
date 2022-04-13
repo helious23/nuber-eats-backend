@@ -3,18 +3,18 @@
 Backend of Uber Eats Clone
 
 ## Core Entity
-- [ ] id
-- [ ] createdAt
-- [ ] updatedAt
+- [x] id
+- [x] createdAt
+- [x] updatedAt
   
 ## User Entity
-- [ ] email
-- [ ] password
-- [ ] role(client|owner|delivery)
+- [x] email
+- [x] password
+- [x] role(client|owner|delivery)
 
 ## User CRUD:
-- [ ] Create Account
-- [ ] Log In
+- [x] Create Account
+- [x] Log In
 - [ ] See Profile
 - [ ] Edit Profile
 - [ ] Verify Email
