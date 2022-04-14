@@ -4,20 +4,31 @@ import { Repository } from 'typeorm';
 import {
   CreateAccountInput,
   CreateAccountOutput,
-} from './dtos/create-account.dto';
-import { User } from './entities/user.entity';
-import { LoginInput, LoginOutput } from './dtos/login.dto';
-import { ConfigService } from '@nestjs/config';
-import { JwtService } from '../jwt/jwt.service';
-import { SeeProfileOutput } from './dtos/see-profile.dto';
-import { EditProfileInput, EditProfileOutput } from './dtos/edit-profile.dto';
+} from '@src/users/dtos/create-account.dto';
+import { User } from '@src/users/entities/user.entity';
+import { LoginInput, LoginOutput } from '@src/users/dtos/login.dto';
+import { JwtService } from '@src/jwt/jwt.service';
+import { SeeProfileOutput } from '@src/users/dtos/see-profile.dto';
+import {
+  EditProfileInput,
+  EditProfileOutput,
+} from '@src/users/dtos/edit-profile.dto';
+import { Verification } from '@src/users/entities/verification.entity';
+import { VerifyEmailOutput } from './dtos/verify-email.dto';
+import { MailService } from '../mail/mail.service';
+import {
+  EditPasswordInput,
+  EditPasswordOutput,
+} from './dtos/edit-password.dto';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User) private readonly users: Repository<User>,
-    private readonly config: ConfigService,
+    @InjectRepository(Verification)
+    private readonly verifications: Repository<Verification>,
     private readonly jwtService: JwtService,
+    private readonly mailService: MailService,
   ) {}
 
   async createAccount({
@@ -33,7 +44,15 @@ export class UserService {
           error: '사용중인 이메일 입니다',
         };
       }
-      await this.users.save(this.users.create({ email, password, role }));
+      const user = await this.users.save(
+        this.users.create({ email, password, role }),
+      );
+      const verification = await this.verifications.save(
+        this.verifications.create({
+          user,
+        }),
+      );
+      this.mailService.sendVerificationMail(user.email, verification.code);
       return {
         ok: true,
       };
@@ -47,7 +66,10 @@ export class UserService {
 
   async login({ email, password }: LoginInput): Promise<LoginOutput> {
     try {
-      const user = await this.users.findOne({ email });
+      const user = await this.users.findOne(
+        { email },
+        { select: ['password', 'id'] },
+      );
       if (!user) {
         return {
           ok: false,
@@ -89,38 +111,39 @@ export class UserService {
 
   async editProfile(
     userId: number,
-    { email, password }: EditProfileInput,
+    { email }: EditProfileInput,
   ): Promise<EditProfileOutput> {
     try {
-      const user = await this.users.findOne(userId);
-      if (email) {
-        if (email === user.email) {
-          return {
-            ok: false,
-            error: '동일한 이메일로는 변경할 수 없습니다',
-          };
-        }
-        const existUser = await this.users.findOne({ where: { email } });
-        if (existUser) {
-          return {
-            ok: false,
-            error: '사용중인 이메일 입니다',
-          };
-        }
-
-        user.email = email;
+      const user = await this.users.findOne(
+        { id: userId },
+        { select: ['id', 'email', 'verified'] },
+      );
+      if (email === user.email) {
+        return {
+          ok: false,
+          error: '동일한 이메일로는 변경할 수 없습니다',
+        };
       }
-      if (password) {
-        const samePassword = await user.checkPassword(password);
-        if (samePassword) {
-          return {
-            ok: false,
-            error: '동일한 비밀번호로는 변경할 수 없습니다',
-          };
-        }
-        user.password = password;
+      const existUser = await this.users.findOne({ where: { email } });
+      if (existUser) {
+        return {
+          ok: false,
+          error: '사용중인 이메일 입니다',
+        };
       }
-      await this.users.save(user);
+      await this.users.update(user.id, { email, verified: false }); // password hash 가 필요 없으므로 update
+      const verification = await this.verifications.findOne({ user });
+      if (!verification) {
+        // verification 에 user 가 이미 연결 되어 있는 경우는 새로 생성 X mail 만 전송
+        const newVerification = await this.verifications.save(
+          this.verifications.create({ user }),
+        );
+        this.mailService.sendVerificationMail(email, newVerification.code);
+        return {
+          ok: true,
+        };
+      }
+      this.mailService.sendVerificationMail(email, verification.code);
       return {
         ok: true,
       };
@@ -129,6 +152,60 @@ export class UserService {
       return {
         ok: false,
         error,
+      };
+    }
+  }
+
+  async editPassword(
+    userId: number,
+    { password }: EditPasswordInput,
+  ): Promise<EditPasswordOutput> {
+    try {
+      const user = await this.users.findOne({ id: userId });
+      const samePassword = await user.checkPassword(password);
+      if (samePassword) {
+        return {
+          ok: false,
+          error: '동일한 비밀번호로는 변경할 수 없습니다',
+        };
+      }
+      user.password = password;
+      await this.users.save(user); // password hash 가 필요하므로 save
+      return {
+        ok: true,
+      };
+    } catch (error) {
+      console.error(error);
+      return {
+        ok: false,
+        error: '비밀번호를 변경할 수 없습니다',
+      };
+    }
+  }
+
+  async verifyEmail(code: string): Promise<VerifyEmailOutput> {
+    try {
+      const verification = await this.verifications.findOne(
+        { code },
+        { relations: ['user'] },
+        // { loadRelationIds: true },
+      );
+      if (verification) {
+        await this.users.update(verification.user.id, { verified: true });
+        await this.verifications.delete(verification.id);
+        return {
+          ok: true,
+        };
+      }
+      return {
+        ok: false,
+        error: '인증 코드를 확인하세요',
+      };
+    } catch (error) {
+      console.error(error);
+      return {
+        ok: false,
+        error: '이메일 인증을 하지 못했습니다',
       };
     }
   }

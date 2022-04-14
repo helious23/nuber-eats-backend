@@ -2,15 +2,29 @@ import { Resolver, Query, Mutation, Args } from '@nestjs/graphql';
 import {
   CreateAccountInput,
   CreateAccountOutput,
-} from './dtos/create-account.dto';
-import { User } from './entities/user.entity';
-import { UserService } from './users.service';
-import { LoginOutput, LoginInput } from './dtos/login.dto';
+} from '@src/users/dtos/create-account.dto';
+import { User } from '@src/users/entities/user.entity';
+import { UserService } from '@src/users/users.service';
+import { LoginOutput, LoginInput } from '@src/users/dtos/login.dto';
 import { UseGuards } from '@nestjs/common';
-import { AuthGuard } from '../auth/auth.guard';
+import { AuthGuard } from '@src/auth/auth.guard';
 import { AuthUser } from '@src/auth/auth-user.decorator';
-import { SeeProfileInput, SeeProfileOutput } from './dtos/see-profile.dto';
-import { EditProfileOutput, EditProfileInput } from './dtos/edit-profile.dto';
+import {
+  EditPasswordOutput,
+  EditPasswordInput,
+} from './dtos/edit-password.dto';
+import {
+  SeeProfileInput,
+  SeeProfileOutput,
+} from '@src/users/dtos/see-profile.dto';
+import {
+  EditProfileOutput,
+  EditProfileInput,
+} from '@src/users/dtos/edit-profile.dto';
+import {
+  VerifyEmailOutput,
+  VerifyEmailInput,
+} from '@src/users/dtos/verify-email.dto';
 
 @Resolver(of => User)
 export class UserResolver {
@@ -49,5 +63,21 @@ export class UserResolver {
     @Args('input') editProfileInput: EditProfileInput,
   ): Promise<EditProfileOutput> {
     return this.usersService.editProfile(authUser.id, editProfileInput);
+  }
+
+  @Mutation(returns => EditPasswordOutput)
+  @UseGuards(AuthGuard)
+  editPassword(
+    @AuthUser() authUser: User,
+    @Args('input') editPasswordInput: EditPasswordInput,
+  ): Promise<EditPasswordOutput> {
+    return this.usersService.editPassword(authUser.id, editPasswordInput);
+  }
+
+  @Mutation(returns => VerifyEmailOutput)
+  verifyEmail(
+    @Args('input') { code }: VerifyEmailInput,
+  ): Promise<VerifyEmailOutput> {
+    return this.usersService.verifyEmail(code);
   }
 }

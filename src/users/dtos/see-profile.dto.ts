@@ -1,6 +1,6 @@
-import { CoreOutput } from '../../common/dtos/output.dto';
+import { CoreOutput } from '@src/common/dtos/output.dto';
 import { ArgsType, Field, ObjectType } from '@nestjs/graphql';
-import { User } from '../entities/user.entity';
+import { User } from '@src/users/entities/user.entity';
 import { IsNumber, IsObject } from 'class-validator';
 
 @ArgsType()
