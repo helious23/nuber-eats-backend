@@ -89,10 +89,9 @@ export class UserService {
         token,
       };
     } catch (error) {
-      console.error(error);
       return {
         ok: false,
-        error,
+        error: '로그인을 할 수 없습니다',
       };
     }
   }
@@ -125,7 +124,7 @@ export class UserService {
         };
       }
       const existUser = await this.users.findOne({ where: { email } });
-      if (existUser) {
+      if (email === existUser.email) {
         return {
           ok: false,
           error: '사용중인 이메일 입니다',
@@ -148,10 +147,9 @@ export class UserService {
         ok: true,
       };
     } catch (error) {
-      console.error(error);
       return {
         ok: false,
-        error,
+        error: '프로필을 수정할 수 없습니다',
       };
     }
   }
@@ -175,7 +173,6 @@ export class UserService {
         ok: true,
       };
     } catch (error) {
-      console.error(error);
       return {
         ok: false,
         error: '비밀번호를 변경할 수 없습니다',
@@ -202,7 +199,6 @@ export class UserService {
         error: '인증 코드를 확인하세요',
       };
     } catch (error) {
-      console.error(error);
       return {
         ok: false,
         error: '이메일 인증을 하지 못했습니다',
