@@ -15,7 +15,7 @@ export class MailService {
     template: string,
     emailVars: EmailVar[],
     to?: string,
-  ) {
+  ): Promise<boolean> {
     const form = new FormData();
     form.append('from', `Max from Nuber Eats <mailgun@${this.options.domain}>`);
     form.append('to', 'max16@naver.com'); // domain 등록 시 to 로 변경
@@ -37,10 +37,8 @@ export class MailService {
           body: form,
         },
       );
-      console.log(response.body);
       return true;
     } catch (error) {
-      console.error(error);
       return false;
     }
   }
