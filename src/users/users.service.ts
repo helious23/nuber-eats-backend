@@ -124,7 +124,7 @@ export class UserService {
         };
       }
       const existUser = await this.users.findOne({ where: { email } });
-      if (email === existUser.email) {
+      if (email === existUser?.email) {
         return {
           ok: false,
           error: '사용중인 이메일 입니다',
@@ -147,6 +147,7 @@ export class UserService {
         ok: true,
       };
     } catch (error) {
+      console.log(error);
       return {
         ok: false,
         error: '프로필을 수정할 수 없습니다',
